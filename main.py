@@ -1,6 +1,7 @@
 # Native modules
-import time
 import json
+import asyncio
+import logging
 
 # Discord specific modules
 import discord
@@ -10,6 +11,16 @@ from discord.ext import commands
 from active_directory import ActiveDirectory
 import user_authentication as user_auth
 from gmail import Gmail
+
+# Configure logging
+logging.basicConfig(
+    level=logging.INFO,
+    format='%(asctime)s - %(name)s - %(levelname)s - %(message)s',
+    handlers=[
+        logging.StreamHandler(), # Log to console
+        logging.FileHandler('cmubot.log') # Log to file
+    ]
+)
 
 class CMUBot(commands.Bot):
     """Creates the Discord bot"""
@@ -59,9 +70,9 @@ async def on_member_join(member):
         return
 
     welcome_message = "Welcome to the Official Central Michigan Esports Discord! Please provide your CMU or personal email address for authentication."
-    time.sleep(10) # A small delay between joining the server and bot message
+    await asyncio.sleep(10) # A small delay between joining the server and bot message
     await member.send(welcome_message)
-    print(f'Welcome message sent to {member.id}')
+    logging.info(f'Welcome message sent to {member.id}')
 
 @bot.event
 async def on_message(message):
@@ -69,20 +80,16 @@ async def on_message(message):
     if message.author == bot.user:
         return
 
-    # For debugging purposes
-    # print(f"Message received from {message.author}: {message.content}")
-
     # Only used if the message channel is a DM
     if isinstance(message.channel, discord.DMChannel):
-        # For debugging purposes
-        # print(f"Message is a DM from {message.author}")
+        logging.info(f"Message is a DM from {message.author}")
         
         # Connects to the server from the DM channel and preps user for role
         server = bot.get_guild(bot.GUILD)
         member = server.get_member(message.author.id)
 
         if member is None:
-            print(f"Member {message.author} not found in server")
+            logging.info(f"Member {message.author} not found in server")
             return
 
         # Define roles that indicate authentication
@@ -95,14 +102,12 @@ async def on_message(message):
                 authenticated = True
                 break
         
-        # For debugging purposes
-        # print(f"Authenticated status for {message.author}: {authenticated}")
+        logging.info(f"Authenticated status for {message.author}: {authenticated}")
 
         # Boolean for managing authentication section of isinstance
         if not authenticated:
             
-            # For debugging purposes
-            # print(f"User {message.author} is not authenticated")
+            logging.info(f"User {message.author} is not authenticated")
             
             # Gets the message history from mod channel and checks for existing auth codes for user
             moderation_channel = bot.get_channel(1143918140519100507)
@@ -111,8 +116,7 @@ async def on_message(message):
             
             if auth_message_sent: # An authorization message was sent to the user
                 
-                # For debugging purposes
-                # print(f"Auth message sent to {message.author}")
+                logging.info(f"Auth message sent to {message.author}")
                 
                 if auth_code in message.content:
                     await target_msg.add_reaction('👍') # Confirmation user has been authenticated
@@ -136,12 +140,11 @@ async def on_message(message):
 
                     await member.send(f'Thank you! You have been granted the {role_name} role.')
                     
-                    print(f'Role of {role_name} granted to {member.id}')
+                    logging.info(f'Role of {role_name} granted to {member.id}')
 
             else: # An authorization message does not exist for the user
                 
-                # For debugging purposes
-                # print(f"No auth message found for {message.author}")
+                logging.info(f"No auth message found for {message.author}")
                 
                 # Gets the email from a message
                 email = user_auth.get_email(message.content.lower())
@@ -155,8 +158,7 @@ async def on_message(message):
                     auth_code = user_auth.create_auth_code()
                     bot.GMAIL.send_message(auth_code, email)
                     
-                    # For debugging purposes
-                    # print(f"Auth code sent to {email}")
+                    logging.info(f"Auth code sent to {email}")
 
                     # Message to mod channel for logging new user
                     moderation_message = f"{message.author.name} - {message.author.id}\n{email}\n{auth_code}"
